@@ -3,11 +3,15 @@
 import rclpy # Python library for ROS 2
 from rclpy.node import Node # Handles the creation of nodes
 import serial
+import numpy as np
 
 # Custom MSG Interfaces
 from xbee_interfaces.msg import GpsControl
 from xbee_interfaces.msg import Joystick
 from xbee_interfaces.msg import Switch
+
+# Publishing to cmd_vel
+from geometry_msgs.msg import Twist
 
 class XbeePublisher(Node):
 
@@ -21,9 +25,10 @@ class XbeePublisher(Node):
         self.get_logger().info('Connected to: ' + self.ser.portstr)
 
         # Create Publishers
-        self.gps_ = self.create_publisher(GpsControl, 'xbee/gps', 10)  
-        self.joystick_ = self.create_publisher(Joystick, 'xbee/joystick', 10)  
-        self.switch_ = self.create_publisher(Switch, 'xbee/switch', 10)  
+        self.gps_ = self.create_publisher(GpsControl, '/xbee/gps', 10)  
+        self.joystick_ = self.create_publisher(Joystick, '/xbee/joystick', 10)  
+        self.switch_ = self.create_publisher(Switch, '/xbee/switch', 10)  
+        self.cmdvel_ = self.create_publisher(Twist, '/cmd_vel', 10)
         
         # Publish message every 0.1 seconds
         timer_period = 0.1  
@@ -34,9 +39,13 @@ class XbeePublisher(Node):
     def timer_callback(self):
         # Reading Data
         data = str(self.ser.readline())[2:-3]
+        self.get_logger().info(data)
 
         # Decoding Data
         new_data = data.split('-')
+
+        # Create Variable for cmd_vel
+        aux_cmdvel = Twist()
 
         # Declaring Variables to Publish
         gps = GpsControl()
@@ -53,6 +62,27 @@ class XbeePublisher(Node):
             gps.latitude = float(new_data[5][3:])
             gps.longitude = float(new_data[6][3:])
 
+            # Writing cmd_vel data
+            aux1 = 1.15 * (2 * np.clip(joystick.x, 0, 1024) - 1024)
+            aux2 = 1.15 * (2 * (1024 - np.clip(joystick.y, 0, 1024)) - 1024)
+            pwm_val = round(np.clip(np.sqrt(np.power(aux1, 2) + np.power(aux2, 2)), 0, 1000)/1000, 3)
+            pwm_angle = np.degrees(np.arctan2(aux2, aux1))
+
+            #self.get_logger().info('VAL: {}, ANGLE: {}'.format(round(pwm_val,2),round(pwm_angle,2)))
+
+            if(45 < pwm_angle <= 135): 
+                aux_cmdvel.linear.x = pwm_val
+                aux_cmdvel.angular.z = 0.0
+            if(135 < pwm_angle <= 180) or (-180 <= pwm_angle <= -135): 
+                aux_cmdvel.linear.x = 0.0
+                aux_cmdvel.angular.z = -pwm_val
+            if(-135 < pwm_angle <= -45): 
+                aux_cmdvel.linear.x = -pwm_val
+                aux_cmdvel.angular.z = 0.0
+            if(-45 < pwm_angle <= 45): 
+                aux_cmdvel.linear.x = 0.0
+                aux_cmdvel.angular.z = pwm_val
+
             # Flag for Correct Data
             self.get_logger().info('Publishing New Data !') 
 
@@ -65,6 +95,10 @@ class XbeePublisher(Node):
             joystick.y = 500
             gps.latitude = 0.000000
             gps.longitude = 0.000000
+            
+            # Writing cmd_vel data
+            aux_cmdvel.linear.x = 0.0
+            aux_cmdvel.angular.z = 0.0
 
             # Flag for Correct Data
             self.get_logger().info('Data is Incorrect !') 
@@ -72,6 +106,7 @@ class XbeePublisher(Node):
         self.gps_.publish(gps)
         self.joystick_.publish(joystick)
         self.switch_.publish(switch)
+        self.cmdvel_.publish(aux_cmdvel)
         
 
 def main(args=None):
