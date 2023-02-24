@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        	'xbee_talker = secondary_pkg.xbee_pub:main'
+        	'xbee_talker = secondary_pkg.xbee_pub:main',
+            'oakd_talker = secondary_pkg.oakd_pub:main'
         ],
     },
 )

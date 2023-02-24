@@ -59,9 +59,15 @@ class XbeePublisher(Node):
             switch.sw3 = int(new_data[2][1:])
             joystick.x = int(new_data[3][1:])
             joystick.y = int(new_data[4][1:])
-            gps.latitude = float(new_data[5][3:])
-            gps.longitude = float(new_data[6][3:])
 
+            try:
+                gps.latitude = float(new_data[5][3:])
+                gps.longitude = float(new_data[6][3:])
+
+            except:
+                gps.latitude = 0.0
+                gps.longitude = 0.0
+                pass
             # Writing cmd_vel data
             aux1 = 1.15 * (2 * np.clip(joystick.x, 0, 1024) - 1024)
             aux2 = 1.15 * (2 * (1024 - np.clip(joystick.y, 0, 1024)) - 1024)

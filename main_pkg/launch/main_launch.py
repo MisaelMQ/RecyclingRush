@@ -10,11 +10,21 @@ from launch.substitutions import PathJoinSubstitution
 def generate_launch_description():
 
     # Importing existing Camera Launch
-    camera_launch = IncludeLaunchDescription(
+    oakd_launch = IncludeLaunchDescription(
                         PythonLaunchDescriptionSource([
                             PathJoinSubstitution([
                                 FindPackageShare('main_pkg'),
                                 'oakd_cam_launch.py'
+                            ])
+                        ])
+                    )
+    
+     # Importing existing Camera Launch
+    xbee_launch = IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource([
+                            PathJoinSubstitution([
+                                FindPackageShare('main_pkg'),
+                                'xbee_controller_launch.py'
                             ])
                         ])
                     )
@@ -27,7 +37,8 @@ def generate_launch_description():
     
     # Packages to be Launched
     ld = LaunchDescription()
-    ld.add_action(camera_launch)
+    ld.add_action(oakd_launch)
+    ld.add_action(xbee_launch)
     ld.add_action(camera_show)
 
     return ld

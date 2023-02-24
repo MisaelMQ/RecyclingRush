@@ -2,10 +2,12 @@
 
 import rclpy # Python library for ROS 2
 from rclpy.node import Node # Handles the creation of nodes
-from sensor_msgs.msg import Image # Image is the message type
 from cv_bridge import CvBridge # Package to convert between ROS and OpenCV Images
 import cv2 # OpenCV library
 import numpy as np
+
+from sensor_msgs.msg import Image # Image is the message type
+from oakd_camera.msg import Model # Model is the message type
  
 class ImageSubscriber(Node):
     
@@ -14,39 +16,74 @@ class ImageSubscriber(Node):
         super().__init__('image_subscriber')
             
         # Create the subscriber. This subscriber will receive an Image
-        self.subscription = self.create_subscription(
+        self.oakd_cam_sub = self.create_subscription(
             Image, 
-            'color/image', 
-            self.listener_callback, 
+            '/oakd/camera', 
+            self.oakd_cam_callback, 
             10)
-        self.subscription # prevent unused variable warning
+        self.oakd_cam_sub # prevent unused variable warning
 
-        # To save image
-        self.image = np.zeros((1080,1920,3))
+        # Create the subscriber. This subscriber will receive a Model
+        self.oakd_model_sub = self.create_subscription(
+            Model, 
+            '/oakd/model', 
+            self.oakd_model_callback, 
+            10)
+        self.oakd_model_sub # prevent unused variable warning
+
+        # To save Image
+        self.image = None
         self.image # prevent unused variable warning
 
-        # Used to convert between ROS and OpenCV images
-        self.br = CvBridge()
+        # To save Model
+        self.model = Model()
 
-    def listener_callback(self, data):
+        # Used to convert between ROS and OpenCV images
+        self.bridge = CvBridge()
+
+    def oakd_cam_callback(self, data):
         # Display the message on the console
         self.get_logger().info('Receiving video frame')
 
         # Convert ROS Image message to OpenCV image
-        self.image = self.br.imgmsg_to_cv2(data)        
+        self.image = self.bridge.imgmsg_to_cv2(data)        
 
         # Actions to be done
         self.actions()
 
+    def oakd_model_callback(self, data):
+        # Display the message on the console
+        self.get_logger().info('Receiving model data')
+
+        # Saving Data
+        self.model = data
+
     def actions(self):
-        # Print Image Shape
-        new_image = cv2.pyrDown(self.image)
-        self.get_logger().info(str(new_image.shape))
-        
+        # Image Paramaters
+        new_image = self.image
+        color = (255,255,0)
+
+        if(self.model.label.det1 != ''):
+            self.draw_bbox(new_image, self.model.label.det1, self.model.confidence.det1, self.model.bboxes.det1, color)
+        if(self.model.label.det2 != ''):
+            self.draw_bbox(new_image, self.model.label.det2, self.model.confidence.det2, self.model.bboxes.det2, color)
+        if(self.model.label.det3 != ''):
+            self.draw_bbox(new_image, self.model.label.det3, self.model.confidence.det3, self.model.bboxes.det3, color)
+        if(self.model.label.det4 != ''):
+            self.draw_bbox(new_image, self.model.label.det4, self.model.confidence.det4, self.model.bboxes.det4, color)
+        if(self.model.label.det5 != ''):
+            self.draw_bbox(new_image, self.model.label.det5, self.model.confidence.det5, self.model.bboxes.det5, color)     
+    
         # Display image
         cv2.imshow('Camera Resized', new_image)
         cv2.waitKey(1)
-  
+
+    def draw_bbox(self, image, label, confidence, bbox, color):
+        cv2.putText(image, label, (bbox.bbox1+10, bbox.bbox2+20), cv2.LINE_AA, 0.8, color)
+        cv2.putText(image, '{}%'.format(confidence), (bbox.bbox1+10, bbox.bbox2+40), cv2.LINE_AA, 0.8, color)
+        cv2.rectangle(image, (bbox.bbox1, bbox.bbox2), (bbox.bbox3, bbox.bbox4), color, 2)
+
+
 def main(args=None):
     # Initialize the rclpy library
     rclpy.init(args=args)

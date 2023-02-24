@@ -5,13 +5,13 @@ from launch import LaunchDescription
 
 def generate_launch_description():
     # Importing Code for Showing Camera
-    oakd_show = launch_ros.actions.Node(
+    xbee_show = launch_ros.actions.Node(
             package='secondary_pkg', 
-            executable='oakd_talker',
-            name='oakd_talker')
+            executable='xbee_talker',
+            name='xbee_talker')
     
     # Packages to be Launched
     ld = LaunchDescription()
-    ld.add_action(oakd_show)
+    ld.add_action(xbee_show)
 
     return ld
